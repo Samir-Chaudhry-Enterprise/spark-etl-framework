@@ -69,8 +69,45 @@ spark-submit \
 
 ### EMR Execution
 
-Use the provided `submit-emr-job.sh` script or run:
+The `submit-emr-job.sh` script handles the full lifecycle: creating an EMR cluster, running the job, and auto-terminating the cluster when complete.
 
+**Basic usage (creates new cluster with auto-terminate):**
+```bash
+export AWS_ACCESS_KEY_ID=<your-key>
+export AWS_SECRET_ACCESS_KEY=<your-secret>
+export AWS_DEFAULT_REGION=us-east-1
+
+./submit-emr-job.sh
+```
+
+**Use an existing cluster:**
+```bash
+./submit-emr-job.sh --use-existing-cluster j-XXXXXXXXXXXXX
+```
+
+**Customize cluster configuration via environment variables:**
+```bash
+export EMR_CLUSTER_NAME="my-spark-job"
+export EMR_RELEASE_LABEL="emr-6.15.0"
+export EMR_MASTER_INSTANCE_TYPE="m5.xlarge"
+export EMR_CORE_INSTANCE_TYPE="m5.xlarge"
+export EMR_CORE_INSTANCE_COUNT="2"
+export EMR_LOG_URI="s3://my-bucket/emr-logs/"
+export EC2_KEY_NAME="my-key-pair"  # Optional, for SSH access
+export EMR_SUBNET_ID="subnet-xxx"  # Optional
+
+./submit-emr-job.sh
+```
+
+The script will:
+1. Create an EMR cluster with Spark and Hadoop installed
+2. Configure S3A settings for optimal S3 access
+3. Wait for the cluster to be ready
+4. Submit the Spark job
+5. Monitor job progress
+6. Auto-terminate the cluster when the job completes
+
+**Manual EMR step submission (if using existing cluster):**
 ```bash
 aws emr add-steps \
   --cluster-id <cluster-id> \
