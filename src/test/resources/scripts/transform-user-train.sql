@@ -10,4 +10,4 @@ select distinct
   concat(concat('${application.process_date}', '-', ${run_date}), '-', concat(cast(${train_count} as string), '-', cast(${users_count} as string))) as process_date,
   t.event as event_id
 from train t
-  left join users u on t.user = u.user_id
+  left join users u on trim(t.user) = cast(u.user_id as string)
