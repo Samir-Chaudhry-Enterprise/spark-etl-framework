@@ -17,7 +17,7 @@
 
         <scala.collection.compat.version>2.8.0</scala.collection.compat.version>
         <spark.avro.version>3.0.1</spark.avro.version>
-        <delta.lake.version>1.2.1</delta.lake.version>
+        <delta.lake.version>3.2.0</delta.lake.version>
         <iceberg.spark.version>3.5</iceberg.spark.version>
         <iceberg.runtime.version>1.10.0</iceberg.runtime.version>
         <io.confluent.version>4.1.2</io.confluent.version>
@@ -176,10 +176,10 @@
             <scope>provided</scope>
         </dependency>
         <dependency>
-            <groupId>io.delta</groupId>
-            <artifactId>delta-core_${scala.compact.version}</artifactId>
-            <version>${delta.lake.version}</version>
-            <scope>provided</scope>
+                        <groupId>io.delta</groupId>
+                        <artifactId>delta-spark_${scala.compact.version}</artifactId>
+                        <version>${delta.lake.version}</version>
+                        <scope>provided</scope>
         </dependency>
         <dependency>
             <groupId>org.apache.spark</groupId>
