@@ -1,0 +1,44 @@
+pipeline-def:
+  name: users-delta-migration
+  description: This pipeline reads user data from files and writes to Delta Lake (migrated from HBase)
+  version: 1.0.0
+  settings:
+    singleSparkSession: false
+    globalViewAsLocal: true
+  variables:
+    - name: process_date
+      value: "${events.process_date}"
+    - name: staging_uri
+      value: "${events.staging_uri}"
+  aliases:
+    - name: file-reader
+      type: com.qwshen.etl.source.FileReader
+    - name: sql
+      type: com.qwshen.etl.transform.SqlTransformer
+    - name: delta-writer
+      type: com.qwshen.etl.sink.DeltaWriter
+  jobs:
+    - name: prepare events-features
+      actions:
+        - name: load users
+          actor:
+            type: file-reader
+            properties:
+              format: csv
+              options:
+                header: true
+              ddlSchemaString: "user_id string, birthyear int, gender string, joined_at string"
+              fileUri: ${events.users_input}
+          output-view:
+            name: users
+        - name: write-users-delta
+          actor:
+            type: delta-writer
+            properties:
+              options:
+                mergeSchema: true
+              partitionBy: "gender"
+              mode: overwrite
+              sinkPath: ${events.delta_output}
+              view: users
+          input-view: [users]
