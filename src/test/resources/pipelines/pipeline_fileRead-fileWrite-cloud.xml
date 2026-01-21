@@ -1,0 +1,175 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<pipeline-def name="event-consolidation" description="This is the process for transforming event data" version="1.0.0">
+    <settings>
+        <singleSparkSession setting="false" />
+        <globalViewAsLocal setting="true" />
+    </settings>
+
+    <variables>
+        <variable name="process_date" value="${events.process_date}" />
+        <variable name="staging_uri" value="${staging.uri}" />
+        <variable name="metrics_uri" value="${metrics.uri}" />
+        <variable name="export_dir" value="${events.output_dir}" />
+        <variable name="execution_date" value="current_date()" />
+    </variables>
+
+    <aliases>
+        <alias name="file-reader" type="com.qwshen.etl.source.FileReader" />
+        <alias name="flat-reader" type="com.qwshen.etl.source.FlatFileReader" />
+        <alias name="sql" type="com.qwshen.etl.transform.SqlTransformer" />
+        <alias name="var-setter" type="com.qwshen.etl.common.VariableSetter" />
+        <alias name="file-writer" type="com.qwshen.etl.sink.FileWriter" />
+    </aliases>
+
+    <job name="prepare events-features">
+        <action name="set variables">
+            <actor type="var-setter">
+                <properties>
+                    <variables>
+                        <runActor>System</runActor>
+                        <runTime>now()</runTime>
+                    </variables>
+                </properties>
+            </actor>
+        </action>
+        <action name="load users">
+            <actor type="file-reader">
+                <properties>
+                    <format>csv</format>
+                    <options>
+                        <header>true</header>
+                        <delimiter>,</delimiter>
+                    </options>
+                    <fileUri>${events.users_input}</fileUri>
+                </properties>
+            </actor>
+            <output-view name="users" global="false" />
+        </action>
+        <action name="load train_csv">
+            <actor type="flat-reader">
+                <properties>
+                    <header>
+                        <identifier>
+                            <matchRegex>^HDR</matchRegex>
+                        </identifier>
+                        <format>delimited</format>
+                        <options>
+                            <header>false</header>
+                            <delimiter>,</delimiter>
+                        </options>
+                        <ddlFieldsString>id:0 string, data_date:1 string</ddlFieldsString>
+                        <output-view>
+                            <name>train_header_csv</name>
+                            <global>true</global>
+                        </output-view>
+                    </header>
+                    <format>delimited</format>
+                    <options>
+                        <header>false</header>
+                        <delimiter>,</delimiter>
+                    </options>
+                    <ddlFieldsString>user:0 string, event:1 string, timestamp:3 string, interested:4 int</ddlFieldsString>
+                    <row>
+                        <noField>seq_number</noField>
+                    </row>
+                    <trailer>
+                        <identifier>
+                            <endNRows>1</endNRows>
+                        </identifier>
+                        <format>delimited</format>
+                        <options>
+                            <header>false</header>
+                            <delimiter>|</delimiter>
+                        </options>
+                        <ddlFieldsString>id:0 string, rec_count:1 int</ddlFieldsString>
+                        <output-view>
+                            <name>train_trailer_csv</name>
+                        </output-view>
+                    </trailer>
+                    <addInputFile>true</addInputFile>
+                    <fileUri>${events.train_input}/train.csv</fileUri>
+                </properties>
+            </actor>
+            <output-view name="train_csv" />
+        </action>
+        <action name="load train">
+            <actor type="flat-reader">
+                <properties>
+                    <header>
+                        <identifier>
+                            <matchRegex>^HDR</matchRegex>
+                        </identifier>
+                        <format>fixed-length</format>
+                        <ddlFieldsString>id:1-3 string, data_date:4-8 string</ddlFieldsString>
+                        <output-view>
+                            <name>train_header</name>
+                            <global>true</global>
+                        </output-view>
+                    </header>
+                    <format>fixed-length</format>
+                    <ddlFieldsString>user:1-9 string, event:10-10 long, timestamp:20-32 string, interested:52-1 int</ddlFieldsString>
+                    <trailer>
+                        <identifier>
+                            <endNRows>1</endNRows>
+                        </identifier>
+                        <format>fixed-length</format>
+                        <ddlFieldsString>id:1-3 string, rec_count:4-7 int</ddlFieldsString>
+                        <output-view>
+                            <name>train_trailer</name>
+                        </output-view>
+                    </trailer>
+                    <fileUri>${events.train_input}/train.txt</fileUri>
+                </properties>
+            </actor>
+            <output-view name="train" />
+        </action>
+        <action name="transform users-train">
+            <actor type="sql">
+                <properties>
+                    <sqlFile>${application.scripts_uri}/transform-user-train.sql</sqlFile>
+                </properties>
+            </actor>
+            <input-views>
+                <view name="users" />
+                <view name="train" />
+            </input-views>
+            <output-view name="features" />
+        </action>
+        <action name="write features">
+            <actor type="file-writer">
+                <properties>
+                    <format>csv</format>
+                    <options>
+                        <header>true</header>
+                        <maxRecordsPerFile>30000</maxRecordsPerFile>
+                    </options>
+                    <partitionBy>gender,interested</partitionBy>
+                    <mode>overwrite</mode>
+                    <fileUri>${export_dir}</fileUri>
+                    <view>features</view>
+                </properties>
+            </actor>
+            <input-views>
+                <view name="features" />
+            </input-views>
+        </action>
+    </job>
+
+    <metrics-logging enabled="false">
+        <uri>${metrics_uri}</uri>
+        <actions>
+            <action name="load users" />
+            <action name="load train" />
+            <action name="transform users-train" />
+        </actions>
+    </metrics-logging>
+
+    <debug-staging enabled="false">
+        <uri>${staging_uri}</uri>
+        <actions>
+            <action name="load train_csv" />
+            <action name="load train" />
+            <action name="transform users-train" />
+        </actions>
+    </debug-staging>
+</pipeline-def>
