@@ -9,7 +9,7 @@ pipeline-def:
     - name: process_date
       value: "${events.process_date}"
     - name: staging_uri
-      value: "${application.staging.uri}"
+      value: "file:///tmp/staging/events"
   aliases:
     - name: file-reader
       type: com.qwshen.etl.source.FileReader
@@ -27,16 +27,19 @@ pipeline-def:
               format: csv
               options:
                 header: true
-              ddlSchemaString: "user_id string, birthyear int, gender string, joined_at string"
-              fileUri: ${events.users_input}
+              ddlSchemaString: "user_id string, birthyear int, gender string, `joined-at` string"
+              fileUri: "${events.users_input}"
           output-view:
             name: users
         - name: write-users-delta
           actor:
             type: delta-writer
             properties:
+              options:
+                overwriteSchema: "true"
               mode: overwrite
               partitionBy: gender
-              sinkPath: ${events.delta_output}
+              sinkPath: "${events.delta_output}"
               view: users
-          input-view: [users]
+          input-views:
+            - users
