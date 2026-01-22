@@ -7,8 +7,8 @@
 
     <variables>
         <variable name="process_date" value="${events.process_date}" />
-        <variable name="staging_uri" value="/tmp/staging/events" />
-        <variable name="metrics_uri" value="/tmp/metrics/events" />
+        <variable name="staging_uri" value="s3://samir-apache-spark-demo/staging/events" />
+        <variable name="metrics_uri" value="s3://samir-apache-spark-demo/metrics/events" />
         <variable name="export_dir" value="${events.output_dir}" />
         <variable name="execution_date" value="current_date()" />
     </variables>
